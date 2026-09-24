@@ -608,13 +608,9 @@
     return mult;
   }
   function handsGain() { return HANDS_GAIN * upStrength(); }
-  // Stronger Hands price: +15% per level for levels 1-50, +20% for the next 100, then +25% from there on.
+  // Stronger Hands price: +6% per level.
   const HANDS_BASE = 15 * UP_PRICE, HANDS_GAIN = 1.5;
-  function handsRate(k) { return k < 50 ? 0.15 : k < 150 ? 0.2 : 0.25; }
-  function handsCost(k) {
-    const a = Math.min(k, 50), b = Math.min(Math.max(k - 50, 0), 100), c = Math.max(k - 150, 0);
-    return Math.ceil(HANDS_BASE * Math.pow(1.15, a) * Math.pow(1.2, b) * Math.pow(1.25, c));
-  }
+  function handsCost(k) { return Math.ceil(HANDS_BASE * Math.pow(1.06, k)); }
   function handsPrice(n) {
     let t = 0;
     for (let i = 0; i < n; i++) t += handsCost(S.clickLevel + i);
@@ -790,7 +786,7 @@
     const hn = handsQty(), hc = handsPrice(hn), hr = $("clickRow");
     $("clickPrice").textContent = (hn > 1 ? hn + " for " : "") + fmt(hc);
     $("clickLevel").textContent = S.clickLevel || "";
-    $("clickDesc").textContent = "Each level adds +" + fmt(handsGain() * clickMult() * rebirthMult(), true) + " per click. Price rises " + Math.round(handsRate(S.clickLevel) * 100) + "% per level.";
+    $("clickDesc").textContent = "Each level adds +" + fmt(handsGain() * clickMult() * rebirthMult(), true) + " per click.";
     hr.dataset.afford = S.cookies >= hc ? "1" : "0";
     hr.setAttribute("aria-label", "Buy " + hn + " Stronger Hands level" + (hn > 1 ? "s" : "") + " for " + fmt(hc) + " cookies. Each level adds " + fmt(clickMult()) + " per click.");
 
