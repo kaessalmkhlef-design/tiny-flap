@@ -2,311 +2,59 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>Tiny Flap</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tiny Arcade</title>
   <style>
-    :root {
-      --sky: #70c5ce;
-      --pipe: #73bf2e;
-      --pipe-dark: #4a8c1c;
-      --ground: #ded895;
-      --dirt: #c9a84c;
-      --ink: #2d2a26;
-    }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    html, body {
-      height: 100%;
-      background: #1a1814;
-      color: var(--ink);
-      font-family: "Segoe UI", system-ui, sans-serif;
-      overflow: hidden;
-      touch-action: none;
-      user-select: none;
-    }
-
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
     body {
+      margin: 0;
+      padding-inline: 16px;
+      padding-block: 48px;
+      background: #1a1814;
+      color: #efe8da;
+      font-family: "Segoe UI", system-ui, sans-serif;
       display: grid;
       place-items: center;
     }
-
-    .wrap {
+    main { width: 100%; max-width: 640px; display: flex; flex-direction: column; gap: 24px; }
+    h1 { margin: 0; font-size: 32px; letter-spacing: 0.02em; }
+    p { margin: 0; color: #cfc8bb; }
+    .games { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+    a.game {
       display: flex;
       flex-direction: column;
-      align-items: center;
-      gap: 12px;
+      gap: 6px;
+      padding: 20px;
+      border-radius: 14px;
+      text-decoration: none;
+      color: inherit;
+      transition: transform 0.15s ease;
     }
-
-    canvas {
-      display: block;
-      width: min(420px, 100vw);
-      height: auto;
-      background: var(--sky);
-      border-radius: 8px;
-      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
-      cursor: pointer;
-    }
-
-    p.hint {
-      color: #cfc8bb;
-      font-size: 14px;
-    }
+    a.game:hover { transform: translateY(-3px); }
+    a.game:focus-visible { outline: 3px solid #efe8da; outline-offset: 3px; }
+    a.game strong { font-size: 22px; }
+    a.game span { font-size: 14px; opacity: 0.85; }
+    .flap { background: #70c5ce; color: #2d2a26; }
+    .crumbs { background: #1d3470; color: #f5ead2; box-shadow: inset 0 0 0 2px #d9aa4f; }
+    .crumbs strong { color: #d9aa4f; }
+    @media (prefers-reduced-motion: reduce) { a.game { transition: none; } }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <canvas id="game" width="420" height="640" aria-label="Tiny Flap game"></canvas>
-    <p class="hint">Click, tap, or press Space to flap</p>
-  </div>
-  <script>
-    const canvas = document.getElementById("game");
-    const ctx = canvas.getContext("2d");
-    const W = canvas.width;
-    const H = canvas.height;
-
-    const GRAVITY = 0.38;
-    const FLAP = -7.2;
-    const PIPE_GAP = 200;
-    const PIPE_W = 72;
-    const PIPE_SPEED = 2.2;
-    const PIPE_EVERY = 110;
-    const GROUND_H = 96;
-    const BIRD_X = 110;
-    const BIRD_R = 16;
-
-    const bird = { y: H / 2, vy: 0 };
-    let pipes = [];
-    let frame = 0;
-    let score = 0;
-    let best = Number(localStorage.getItem("tiny-flap-best") || 0);
-    let state = "ready"; // ready | play | dead
-    let groundX = 0;
-
-    function reset() {
-      bird.y = H / 2;
-      bird.vy = 0;
-      pipes = [];
-      frame = 0;
-      score = 0;
-      state = "ready";
-    }
-
-    function flap() {
-      if (state === "dead") reset();
-      if (state === "ready") state = "play";
-      bird.vy = FLAP;
-    }
-
-    function spawnPipe() {
-      const minY = 90;
-      const maxY = H - GROUND_H - PIPE_GAP - 70;
-      const topH = minY + Math.random() * (maxY - minY);
-      pipes.push({ x: W + 20, topH, passed: false });
-    }
-
-    function hitPipe(p) {
-      const left = BIRD_X - BIRD_R + 4;
-      const right = BIRD_X + BIRD_R - 4;
-      const top = bird.y - BIRD_R + 4;
-      const bot = bird.y + BIRD_R - 4;
-      const px1 = p.x;
-      const px2 = p.x + PIPE_W;
-      if (right < px1 || left > px2) return false;
-      if (top < p.topH) return true;
-      if (bot > p.topH + PIPE_GAP) return true;
-      return false;
-    }
-
-    function update() {
-      groundX = (groundX - PIPE_SPEED) % 40;
-
-      if (state === "ready") {
-        bird.y = H / 2 + Math.sin(Date.now() / 280) * 8;
-        return;
-      }
-
-      if (state !== "play") return;
-
-      bird.vy += GRAVITY;
-      bird.y += bird.vy;
-      frame += 1;
-
-      if (frame % PIPE_EVERY === 0) spawnPipe();
-
-      for (const p of pipes) {
-        p.x -= PIPE_SPEED;
-        if (!p.passed && p.x + PIPE_W < BIRD_X) {
-          p.passed = true;
-          score += 1;
-          if (score > best) {
-            best = score;
-            localStorage.setItem("tiny-flap-best", String(best));
-          }
-        }
-        if (hitPipe(p)) state = "dead";
-      }
-
-      pipes = pipes.filter((p) => p.x > -PIPE_W - 10);
-
-      if (bird.y + BIRD_R >= H - GROUND_H || bird.y - BIRD_R <= 0) {
-        bird.y = Math.max(BIRD_R, Math.min(H - GROUND_H - BIRD_R, bird.y));
-        state = "dead";
-      }
-    }
-
-    function roundRect(x, y, w, h, r) {
-      ctx.beginPath();
-      ctx.roundRect(x, y, w, h, r);
-      ctx.fill();
-    }
-
-    function drawSky() {
-      const g = ctx.createLinearGradient(0, 0, 0, H);
-      g.addColorStop(0, "#8fd8e0");
-      g.addColorStop(1, "#5fb4c0");
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, W, H);
-
-      ctx.fillStyle = "rgba(255,255,255,0.85)";
-      for (const c of [
-        [60, 90, 28],
-        [95, 90, 36],
-        [130, 90, 26],
-        [280, 130, 32],
-        [320, 128, 40],
-        [360, 132, 28],
-      ]) {
-        ctx.beginPath();
-        ctx.arc(c[0], c[1], c[2], 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-
-    function drawPipes() {
-      for (const p of pipes) {
-        ctx.fillStyle = "#73bf2e";
-        ctx.fillRect(p.x, 0, PIPE_W, p.topH);
-        ctx.fillRect(p.x, p.topH + PIPE_GAP, PIPE_W, H - GROUND_H - (p.topH + PIPE_GAP));
-
-        ctx.fillStyle = "#5aa31f";
-        ctx.fillRect(p.x - 6, p.topH - 22, PIPE_W + 12, 22);
-        ctx.fillRect(p.x - 6, p.topH + PIPE_GAP, PIPE_W + 12, 22);
-
-        ctx.fillStyle = "rgba(255,255,255,0.18)";
-        ctx.fillRect(p.x + 8, 0, 10, p.topH - 22);
-        ctx.fillRect(p.x + 8, p.topH + PIPE_GAP + 22, 10, H - GROUND_H - p.topH - PIPE_GAP - 22);
-      }
-    }
-
-    function drawGround() {
-      ctx.fillStyle = "#ded895";
-      ctx.fillRect(0, H - GROUND_H, W, GROUND_H);
-      ctx.fillStyle = "#73bf2e";
-      ctx.fillRect(0, H - GROUND_H, W, 14);
-      ctx.fillStyle = "#5aa31f";
-      ctx.fillRect(0, H - GROUND_H + 14, W, 6);
-
-      ctx.fillStyle = "#c9a84c";
-      for (let x = groundX; x < W + 40; x += 40) {
-        ctx.fillRect(x, H - GROUND_H + 28, 18, 8);
-      }
-    }
-
-    function drawBird() {
-      const x = BIRD_X;
-      const y = bird.y;
-      const tilt = Math.max(-0.6, Math.min(0.9, bird.vy / 10));
-
-      ctx.save();
-      ctx.translate(x, y);
-      ctx.rotate(tilt);
-
-      ctx.fillStyle = "#f7d23e";
-      ctx.beginPath();
-      ctx.ellipse(0, 0, 18, 14, 0, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = "#f3c12b";
-      ctx.beginPath();
-      ctx.ellipse(-4, 2, 10, 8, -0.4, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = "#fff";
-      ctx.beginPath();
-      ctx.arc(8, -4, 5.5, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = "#222";
-      ctx.beginPath();
-      ctx.arc(10, -4, 2.4, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = "#f08a20";
-      ctx.beginPath();
-      ctx.moveTo(14, 1);
-      ctx.lineTo(26, 4);
-      ctx.lineTo(14, 8);
-      ctx.closePath();
-      ctx.fill();
-
-      ctx.restore();
-    }
-
-    function drawHud() {
-      ctx.fillStyle = "#fff";
-      ctx.strokeStyle = "#2d2a26";
-      ctx.lineWidth = 4;
-      ctx.font = "bold 42px Segoe UI, system-ui, sans-serif";
-      ctx.textAlign = "center";
-      if (state === "play") {
-        ctx.strokeText(String(score), W / 2, 72);
-        ctx.fillText(String(score), W / 2, 72);
-      }
-
-      if (state === "ready") {
-        panel("TINY FLAP", "Tap to start");
-      }
-      if (state === "dead") {
-        panel("OUCH", "Score " + score + "   Best " + best, "Tap to try again");
-      }
-    }
-
-    function panel(title, line, extra) {
-      const h = extra ? 160 : 120;
-      const y = extra ? 200 : 48;
-      ctx.fillStyle = "rgba(255,255,255,0.92)";
-      roundRect(50, y, W - 100, h, 16);
-      ctx.fillStyle = "#2d2a26";
-      ctx.font = "bold 36px Segoe UI, system-ui, sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText(title, W / 2, y + 50);
-      ctx.font = "20px Segoe UI, system-ui, sans-serif";
-      ctx.fillText(line, W / 2, y + 88);
-      if (extra) ctx.fillText(extra, W / 2, y + 122);
-    }
-
-    function loop() {
-      update();
-      drawSky();
-      drawPipes();
-      drawGround();
-      drawBird();
-      drawHud();
-      requestAnimationFrame(loop);
-    }
-
-    canvas.addEventListener("pointerdown", (e) => {
-      e.preventDefault();
-      flap();
-    });
-    window.addEventListener("keydown", (e) => {
-      if (e.code === "Space" || e.code === "ArrowUp") {
-        e.preventDefault();
-        flap();
-      }
-    });
-
-    loop();
-  </script>
+  <main>
+    <h1>Tiny Arcade</h1>
+    <p>Pick a game.</p>
+    <div class="games">
+      <a class="game flap" href="tiny-flap/">
+        <strong>Tiny Flap</strong>
+        <span>Tap to flap between the pipes.</span>
+      </a>
+      <a class="game crumbs" href="cookie-clicker/">
+        <strong>Tiny Crumbs</strong>
+        <span>A cookie clicker with helpers, upgrades and rebirths.</span>
+      </a>
+    </div>
+  </main>
 </body>
 </html>

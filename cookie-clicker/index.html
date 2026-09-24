@@ -587,12 +587,13 @@
   function bonusCps(b) { return b.id === "cursor" ? CURSOR_BONUS * Math.floor(owned(b.id) / 5) * buildingMult(b.id) : 0; }
   function buildingCps(b) { return owned(b.id) * eachCps(b) + bonusCps(b); }
   // Rebirth: each Golden Crumb adds +10% to everything baked, forever.
-  const CRUMB_STEP = 1e6;
+  // Crumbs come from the cookies you currently have. Each rebirth makes the next one need 25% more.
+  function crumbStep() { return 1e6 * Math.pow(1.25, S.rebirths); }
   // The bonus counts every crumb ever earned, so spending crumbs never lowers it.
   function rebirthMult() { return 1 + 0.1 * S.crumbs; }
   function crumbsFree() { return S.crumbs - S.crumbsSpent; }
   function recipeCost() { return 3 + 2 * S.recipeLevel; }
-  function pendingCrumbs() { return Math.floor(Math.cbrt(S.runTotal / CRUMB_STEP) + 1e-9); }
+  function pendingCrumbs() { return Math.floor(Math.cbrt(S.cookies / crumbStep()) + 1e-9); }
   function frenzy() { return Date.now() < S.frenzyUntil; }
   function clickFrenzy() { return Date.now() < S.clickFrenzyUntil; }
   function cps() { return baseCps() * (frenzy() ? 7 : 1); }
@@ -915,10 +916,10 @@
     badge.hidden = gain < 1 && free < rc;
     badge.textContent = gain >= 1 ? "+" + fmt(gain) : fmt(free);
     $("rbBonus").textContent = "+" + fmt(S.crumbs * 10) + "% to all cookies baked";
-    const next = Math.pow(gain + 1, 3) * CRUMB_STEP;
+    const next = Math.pow(gain + 1, 3) * crumbStep();
     $("rbNote").textContent = gain < 1
-      ? "Bake " + fmt(CRUMB_STEP) + " cookies in one run to earn " + (S.crumbs ? "more crumbs" : "your first crumb") + ". This run: " + fmt(S.runTotal) + "."
-      : "Rebirth now for +" + plural(gain, "crumb") + ". Next crumb at " + fmt(next) + " baked this run.";
+      ? "Have " + fmt(crumbStep()) + " cookies to earn " + (S.crumbs ? "more crumbs" : "your first crumb") + ". You have " + fmt(S.cookies) + "."
+      : "Rebirth now for +" + plural(gain, "crumb") + ". Next crumb at " + fmt(next) + " cookies.";
     const foot = $("rbFoot");
     foot.hidden = S.crumbs === 0;
     foot.textContent = "Crumbs +" + fmt(S.crumbs * 10) + "%";
