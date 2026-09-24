@@ -521,7 +521,7 @@
     for (const u of UPGRADES) if (has(u.id)) mult *= u.clickMult || 1;
     return mult;
   }
-  const HANDS_BASE = 20, HANDS_RATE = 1.35;
+  const HANDS_BASE = 15, HANDS_RATE = 1.35;
   function handsPrice(n) {
     const first = HANDS_BASE * Math.pow(HANDS_RATE, S.clickLevel);
     return Math.ceil(first * (Math.pow(HANDS_RATE, n) - 1) / (HANDS_RATE - 1));
