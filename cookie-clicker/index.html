@@ -622,8 +622,13 @@
   function handsGain() { return HANDS_GAIN * upStrength(); }
   // Each Stronger Hands level is 3% stronger than the one before it.
   const HANDS_GROWTH = 1.03;
-  function handsNext() { return handsGain() * Math.pow(HANDS_GROWTH, S.clickLevel); }
-  function handsTotal() { return handsGain() * (Math.pow(HANDS_GROWTH, S.clickLevel) - 1) / (HANDS_GROWTH - 1); }
+  // Milestones: reaching level 25 adds +10% to the Stronger Hands total, 55 another +10%, 85 another +5%.
+  const HANDS_MILESTONES = [[25, 0.1], [55, 0.1], [85, 0.05]];
+  function handsBonus(L) { let b = 1; for (const [lvl, add] of HANDS_MILESTONES) if (L >= lvl) b += add; return b; }
+  function handsAt(L) { return handsGain() * (Math.pow(HANDS_GROWTH, L) - 1) / (HANDS_GROWTH - 1) * handsBonus(L); }
+  function handsNext() { return handsAt(S.clickLevel + 1) - handsAt(S.clickLevel); }
+  function handsTotal() { return handsAt(S.clickLevel); }
+  function handsNextMilestone() { return HANDS_MILESTONES.find(([lvl]) => S.clickLevel < lvl); }
   // Stronger Hands price: +6% per level.
   // Scaled so 100 levels with all three click tiles give 3,500 per click.
   const HANDS_BASE = 15 * UP_PRICE, HANDS_GAIN = 0.2912;
@@ -662,7 +667,7 @@
     if (!isFinite(n)) return "∞";
     if (n < 1e6) {
       if (dec && n < 10 && n % 1) return String(Math.round(n * 100 + 1e-7) / 100);
-      if (dec && n < 100 && n % 1) return n.toFixed(1);
+      if (dec && n < 100 && n % 1) return String(Math.round(n * 10 + 1e-7) / 10);
       return Math.floor(n).toLocaleString("en-US");
     }
     const e = Math.min(UNITS.length - 1, Math.floor(Math.log10(n) / 3));
@@ -803,7 +808,9 @@
     const hn = handsQty(), hc = handsPrice(hn), hr = $("clickRow");
     $("clickPrice").textContent = (hn > 1 ? hn + " for " : "") + fmt(hc);
     $("clickLevel").textContent = S.clickLevel || "";
-    $("clickDesc").textContent = "Next level adds +" + fmt(handsNext() * clickMult(), true) + " per click.";
+    const ms = handsNextMilestone();
+    $("clickDesc").textContent = "Next level adds +" + fmt(handsNext() * clickMult(), true) + " per click." +
+      (ms ? " Level " + ms[0] + " gives a +" + Math.round(ms[1] * 100) + "% bonus." : "");
     hr.dataset.afford = S.cookies >= hc ? "1" : "0";
     hr.setAttribute("aria-label", "Buy " + hn + " Stronger Hands level" + (hn > 1 ? "s" : "") + " for " + fmt(hc) + " cookies. Each level adds " + fmt(clickMult()) + " per click.");
 
