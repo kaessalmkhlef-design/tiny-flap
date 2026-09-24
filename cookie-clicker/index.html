@@ -527,7 +527,7 @@
         id: b.id + "-" + i,
         name: TIER_NAMES[b.id][i],
         glyph: b.name[0],
-        desc: () => b.name + "s are " + fmtX(UP_MULT * upStrength()) + "× as productive.",
+        desc: (k) => b.name + "s are " + fmtX(UP_MULT * upStrength() * k) + "× as productive.",
         cost: tilePrice(Math.round(b.base * t.costX * UP_PRICE)),
         unlocked: () => owned(b.id) >= t.need,
         building: b.id,
@@ -546,9 +546,9 @@
       id: c.id,
       name: c.name,
       glyph: "✦",
-      desc: () => c.mult
-        ? "Clicking bakes " + fmtX(UP_MULT * upStrength()) + "× as many cookies."
-        : "Each click also bakes " + fmtX(UP_PCT * upStrength() * 100) + "% of your cookies per second.",
+      desc: (k) => c.mult
+        ? "Clicking bakes " + fmtX(UP_MULT * upStrength() * k) + "× as many cookies."
+        : "Each click also bakes " + fmtX(UP_PCT * upStrength() * k * 100) + "% of your cookies per second.",
       cost: tilePrice(Math.round(c.cost * UP_PRICE)),
       unlocked: () => S.handmade >= c.need,
       clickMult: !!c.mult,
@@ -556,6 +556,8 @@
     });
   });
   UPGRADES.sort((a, b) => a.cost - b.cost);
+  // Tiles priced above 2.5 million cookies are 45% stronger.
+  for (const u of UPGRADES) u.boost = u.cost > 2.5e6 ? 1.45 : 1;
 
   // ---------- state ----------
   const fresh = () => ({
@@ -575,7 +577,7 @@
 
   function buildingMult(id) {
     let m = 1;
-    for (const u of UPGRADES) if (u.building === id && has(u.id)) m *= UP_MULT * upStrength();
+    for (const u of UPGRADES) if (u.building === id && has(u.id)) m *= UP_MULT * upStrength() * u.boost;
     return m;
   }
   function baseCps() {
@@ -609,12 +611,12 @@
   function perClick() {
     const mult = clickMult();
     let pct = 0;
-    for (const u of UPGRADES) if (u.clickPct && has(u.id)) pct += UP_PCT * upStrength();
+    for (const u of UPGRADES) if (u.clickPct && has(u.id)) pct += UP_PCT * upStrength() * u.boost;
     return ((baseClick() + handsTotal()) * mult + cps() * pct) * (clickFrenzy() ? 777 : 1);
   }
   function clickMult() {
     let mult = 1;
-    for (const u of UPGRADES) if (u.clickMult && has(u.id)) mult *= UP_MULT * upStrength();
+    for (const u of UPGRADES) if (u.clickMult && has(u.id)) mult *= UP_MULT * upStrength() * u.boost;
     return mult;
   }
   function handsGain() { return HANDS_GAIN * upStrength(); }
@@ -767,10 +769,10 @@
       el.type = "button";
       el.className = "up";
       el.dataset.id = u.id;
-      el.setAttribute("aria-label", u.name + ", " + fmt(u.cost) + " cookies. " + u.desc());
+      el.setAttribute("aria-label", u.name + ", " + fmt(u.cost) + " cookies. " + u.desc(u.boost));
       el.innerHTML = '<span aria-hidden="true">' + u.glyph + '</span><span class="tip"><b></b><span class="d"></span><span class="price"></span></span>';
       el.querySelector("b").textContent = u.name;
-      el.querySelector(".d").textContent = u.desc();
+      el.querySelector(".d").textContent = u.desc(u.boost);
       el.querySelector(".price").textContent = plural(u.cost, "cookie");
       el.addEventListener("click", () => buyUp(u));
       upsEl.appendChild(el);
