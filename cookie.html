@@ -578,9 +578,14 @@
   }
   function baseCps() {
     let t = 0;
-    for (const b of BUILDINGS) t += owned(b.id) * b.cps * buildingMult(b.id);
+    for (const b of BUILDINGS) t += buildingCps(b);
     return t * rebirthMult();
   }
+  // Helpers make 8% more than their listed rate. Every 5th Cursor owned adds a bonus +0.3/s.
+  const HELPER_BOOST = 1.08, CURSOR_BONUS = 0.3;
+  function eachCps(b) { return b.cps * HELPER_BOOST * buildingMult(b.id); }
+  function bonusCps(b) { return b.id === "cursor" ? CURSOR_BONUS * Math.floor(owned(b.id) / 5) * buildingMult(b.id) : 0; }
+  function buildingCps(b) { return owned(b.id) * eachCps(b) + bonusCps(b); }
   // Rebirth: each Golden Crumb adds +10% to everything baked, forever.
   const CRUMB_STEP = 1e6;
   // The bonus counts every crumb ever earned, so spending crumbs never lowers it.
@@ -604,7 +609,7 @@
   }
   function handsGain() { return HANDS_GAIN * upStrength(); }
   // Stronger Hands price: +15% per level for levels 1-50, +20% for the next 100, then +25% from there on.
-  const HANDS_BASE = 15 * UP_PRICE, HANDS_GAIN = 1.62;
+  const HANDS_BASE = 15 * UP_PRICE, HANDS_GAIN = 1.5;
   function handsRate(k) { return k < 50 ? 0.15 : k < 150 ? 0.2 : 0.25; }
   function handsCost(k) {
     const a = Math.min(k, 50), b = Math.min(Math.max(k - 50, 0), 100), c = Math.max(k - 150, 0);
@@ -643,6 +648,7 @@
   function fmt(n, dec) {
     if (!isFinite(n)) return "∞";
     if (n < 1e6) {
+      if (dec && n < 10 && n % 1) return String(parseFloat(n.toFixed(2)));
       if (dec && n < 100 && n % 1) return n.toFixed(1);
       return Math.floor(n).toLocaleString("en-US");
     }
@@ -808,9 +814,11 @@
       r.row.classList.remove("locked");
       const n = qtyFor(b);
       const cost = priceOf(b, n);
-      const each = b.cps * buildingMult(b.id);
+      const each = eachCps(b) * rebirthMult();
       r.name.textContent = b.name;
-      r.desc.textContent = b.desc + " +" + fmt(each, true) + "/s each.";
+      r.desc.textContent = b.desc + " +" + fmt(each, true) + "/s each." + (b.id === "cursor"
+        ? " Every 5th adds a bonus +" + fmt(CURSOR_BONUS * buildingMult(b.id) * rebirthMult(), true) + "/s (next at " + (Math.floor(owned(b.id) / 5) + 1) * 5 + ")."
+        : "");
       r.price.textContent = (n > 1 ? n + " for " : "") + fmt(cost);
       r.owned.textContent = owned(b.id) || "";
       r.row.dataset.afford = S.cookies >= cost ? "1" : "0";
