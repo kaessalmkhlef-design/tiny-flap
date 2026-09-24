@@ -518,6 +518,8 @@
   const UP_MULT = 2.7, UP_PCT = 0.0162, UP_PRICE = 0.88;
   function upStrength() { return 1 + 0.1 * S.recipeLevel; }
   function fmtX(x) { return String(parseFloat(x.toFixed(2))); }
+  // Tiles under 50,000 cookies cost 15x, under 150,000 cost 10x, and the rest cost 3x.
+  function tilePrice(p) { return Math.round(p * (p < 50000 ? 15 : p < 150000 ? 10 : 3)); }
   const UPGRADES = [];
   for (const b of BUILDINGS) {
     TIERS.forEach((t, i) => {
@@ -526,7 +528,7 @@
         name: TIER_NAMES[b.id][i],
         glyph: b.name[0],
         desc: () => b.name + "s are " + fmtX(UP_MULT * upStrength()) + "× as productive.",
-        cost: Math.round(b.base * t.costX * UP_PRICE),
+        cost: tilePrice(Math.round(b.base * t.costX * UP_PRICE)),
         unlocked: () => owned(b.id) >= t.need,
         building: b.id,
       });
@@ -547,7 +549,7 @@
       desc: () => c.mult
         ? "Clicking bakes " + fmtX(UP_MULT * upStrength()) + "× as many cookies."
         : "Each click also bakes " + fmtX(UP_PCT * upStrength() * 100) + "% of your cookies per second.",
-      cost: Math.round(c.cost * UP_PRICE),
+      cost: tilePrice(Math.round(c.cost * UP_PRICE)),
       unlocked: () => S.handmade >= c.need,
       clickMult: !!c.mult,
       clickPct: !!c.pct,
