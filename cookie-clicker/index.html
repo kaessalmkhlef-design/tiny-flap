@@ -585,8 +585,8 @@
   const HELPER_BOOST = 1.08 * 1.15, CURSOR_BONUS = 0.3;
   function eachCps(b) { return b.cps * HELPER_BOOST * buildingMult(b.id); }
   function bonusCps(b) { return b.id === "cursor" ? CURSOR_BONUS * Math.floor(owned(b.id) / 5) * buildingMult(b.id) : 0; }
-  // Each helper you buy is 7.5% stronger than the one before it.
-  const HELPER_GROWTH = 1.075;
+  // Each helper you buy is 20% stronger than the one before it.
+  const HELPER_GROWTH = 1.2;
   function nextCps(b) { return eachCps(b) * Math.pow(HELPER_GROWTH, owned(b.id)); }
   function buildingCps(b) {
     return eachCps(b) * (Math.pow(HELPER_GROWTH, owned(b.id)) - 1) / (HELPER_GROWTH - 1) + bonusCps(b);
