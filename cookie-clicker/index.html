@@ -487,8 +487,8 @@
   const SAVE_KEY = "tiny-crumbs-v1";
 
   const BUILDINGS = [
-    { id: "cursor",  name: "Cursor",        desc: "Pokes the cookie every ten seconds.",   base: 15,      cps: 0.1 },
-    { id: "grandma", name: "Grandma",       desc: "Brings her own rolling pin.",           base: 100,     cps: 1 },
+    { id: "cursor",  name: "Tapper",        desc: "Taps the cookie with a wooden spoon.",   base: 15,      cps: 0.1 },
+    { id: "grandma", name: "Nana",          desc: "Brings her own rolling pin.",           base: 100,     cps: 1 },
     { id: "farm",    name: "Wheat Farm",    desc: "Mills flour straight into the dough.",  base: 1100,    cps: 8 },
     { id: "oven",    name: "Brick Oven",    desc: "Twelve trays at 180 °C.",               base: 12000,   cps: 47 },
     { id: "bakery",  name: "Bakery",        desc: "A corner shop with a queue outside.",   base: 130000,  cps: 260 },
@@ -498,12 +498,12 @@
   ];
 
   const TIER_NAMES = {
-    cursor:  ["Nimble Fingers", "Ambidextrous", "Thousand Hands", "Carpal Insurance"],
-    grandma: ["Steel Rolling Pins", "Reading Glasses", "Bingo Night Off", "Secret Recipe"],
-    farm:    ["Sharper Hoes", "Fertilizer", "Cookie Trees", "Heirloom Wheat"],
+    cursor:  ["Nimble Fingers", "Double Tap", "Drum Roll", "Wrist Wraps"],
+    grandma: ["Marble Rolling Pins", "Reading Glasses", "Knitting Break", "Secret Recipe"],
+    farm:    ["Crop Rotation", "Compost Heaps", "Irrigation", "Heirloom Wheat"],
     oven:    ["Hotter Coals", "Stone Hearth", "Double Decks", "Convection Fans"],
     bakery:  ["Sourdough Starter", "Night Shift", "Franchise Sign", "Queue Barriers"],
-    factory: ["Sturdier Belts", "Overtime Pay", "Robot Arms", "Lights-out Line"],
+    factory: ["Oiled Gears", "Overtime Pay", "Robot Arms", "Lights-out Line"],
     port:    ["Bigger Hulls", "Tailwinds", "Container Cranes", "Cocoa Pipeline"],
     lab:     ["Sugar Crystals", "Quantum Crumbs", "Peer Review", "Grant Money"],
   };
@@ -585,7 +585,7 @@
     for (const b of BUILDINGS) t += buildingCps(b);
     return t * rebirthMult();
   }
-  // Helpers make 24.2% more than their listed rate (+8%, then +15%). Every 5th Cursor owned adds a bonus +0.3/s.
+  // Helpers make 24.2% more than their listed rate (+8%, then +15%). Every 5th Tapper owned adds a bonus +0.3/s.
   const HELPER_BOOST = 1.08 * 1.15, CURSOR_BONUS = 0.3;
   function eachCps(b) { return b.cps * HELPER_BOOST * buildingMult(b.id); }
   function bonusCps(b) { return b.id === "cursor" ? CURSOR_BONUS * Math.floor(owned(b.id) / 5) * buildingMult(b.id) : 0; }
@@ -607,12 +607,12 @@
   function pendingCrumbs() { return Math.floor(Math.cbrt(S.cookies / crumbStep()) + 1e-9); }
   function frenzy() { return Date.now() < S.frenzyUntil; }
   function clickFrenzy() { return Date.now() < S.clickFrenzyUntil; }
-  function cps() { return baseCps() * (frenzy() ? 7 : 1); }
+  function cps() { return baseCps() * (frenzy() ? 6 : 1); }
   function perClick() {
     const mult = clickMult();
     let pct = 0;
     for (const u of UPGRADES) if (u.clickPct && has(u.id)) pct += UP_PCT * upStrength() * u.boost;
-    return ((baseClick() + handsTotal()) * mult + cps() * pct) * (clickFrenzy() ? 777 : 1);
+    return ((baseClick() + handsTotal()) * mult + cps() * pct) * (clickFrenzy() ? 300 : 1);
   }
   function clickMult() {
     let mult = 1;
@@ -799,10 +799,10 @@
     const buff = $("buff");
     if (clickFrenzy()) {
       buff.hidden = false;
-      buff.textContent = "Click frenzy ×777 · " + Math.ceil((S.clickFrenzyUntil - Date.now()) / 1000) + "s";
+      buff.textContent = "Hot Hands ×300 · " + Math.ceil((S.clickFrenzyUntil - Date.now()) / 1000) + "s";
     } else if (frenzy()) {
       buff.hidden = false;
-      buff.textContent = "Frenzy ×7 · " + Math.ceil((S.frenzyUntil - Date.now()) / 1000) + "s";
+      buff.textContent = "Oven Rush ×6 · " + Math.ceil((S.frenzyUntil - Date.now()) / 1000) + "s";
     } else buff.hidden = true;
 
     const hn = handsQty(), hc = handsPrice(hn), hr = $("clickRow");
@@ -979,7 +979,7 @@
     [0, "You bake a cookie. It is a good cookie."],
     [0, "The kitchen smells of brown butter."],
     [50, "The neighbours ask what that smell is."],
-    [500, "A grandma knocks. She has heard about the cookies."],
+    [500, "A nana knocks. She has heard about the cookies."],
     [5000, "Local paper: \"Cookies spotted on every windowsill.\""],
     [50000, "Flour prices rise across the county."],
     [5e5, "Dentists report a very good quarter."],
@@ -995,7 +995,7 @@
   }
   setInterval(tick, 9000);
 
-  // ---------- golden cookie ----------
+  // ---------- gilded biscuit ----------
   let goldenEl = null, goldenTimer = null;
   function spawnGolden() {
     if (goldenEl) return;
@@ -1003,7 +1003,7 @@
     goldenEl = document.createElement("button");
     goldenEl.type = "button";
     goldenEl.className = "golden";
-    goldenEl.setAttribute("aria-label", "Golden cookie! Click it");
+    goldenEl.setAttribute("aria-label", "Gilded biscuit! Click it");
     goldenEl.style.left = rand(20, Math.max(24, w - 84)) + "px";
     goldenEl.style.top = rand(110, Math.max(114, h - 120)) + "px";
     goldenEl.addEventListener("click", clickGolden);
@@ -1022,17 +1022,17 @@
     const x = e.clientX - rect.left || stage.clientWidth / 2, y = e.clientY - rect.top || stage.clientHeight / 2;
     if (r < 0.45) {
       S.frenzyUntil = Date.now() + 30000;
-      toast("Frenzy! Cookie production ×7 for 30 seconds");
-      floatText(x, y, "Frenzy!");
+      toast("Oven Rush! Helpers bake ×6 for 30 seconds");
+      floatText(x, y, "Oven Rush!");
     } else if (r < 0.85 || baseCps() === 0) {
-      const gain = Math.max(13, Math.min(S.cookies * 0.15, baseCps() * 900) + 13);
+      const gain = Math.max(10, Math.min(S.cookies * 0.12, baseCps() * 600) + 10);
       addCookies(gain);
-      toast("Lucky! +" + plural(gain, "cookie"));
+      toast("Windfall! +" + plural(gain, "cookie"));
       floatText(x, y, "+" + fmt(gain));
     } else {
-      S.clickFrenzyUntil = Date.now() + 13000;
-      toast("Click frenzy! Clicks ×777 for 13 seconds");
-      floatText(x, y, "Click frenzy!");
+      S.clickFrenzyUntil = Date.now() + 12000;
+      toast("Hot Hands! Clicks ×300 for 12 seconds");
+      floatText(x, y, "Hot Hands!");
     }
     burst(x, y, 24, true);
     removeGolden();
@@ -1119,7 +1119,7 @@
     }
   }
 
-  function drawCursors() {
+  function drawTappers() {
     const n = Math.min(owned("cursor"), 50);
     if (!n) return;
     const R = cookie.r * 1.18;
@@ -1133,12 +1133,14 @@
       ctx.save();
       ctx.translate(cookie.x + Math.cos(a) * rr, cookie.y + Math.sin(a) * rr);
       ctx.rotate(a + Math.PI / 2);
-      ctx.fillStyle = "#f5ead2";
-      ctx.strokeStyle = "#122450";
+      // a small wooden spoon, bowl toward the cookie
+      ctx.fillStyle = "#c9955a";
+      ctx.strokeStyle = "#5b3a1e";
       ctx.lineWidth = 1;
+      ctx.fillRect(-1.2, -1, 2.4, 11);
+      ctx.strokeRect(-1.2, -1, 2.4, 11);
       ctx.beginPath();
-      ctx.moveTo(0, -7); ctx.lineTo(5, 3); ctx.lineTo(1.5, 2); ctx.lineTo(1.5, 8);
-      ctx.lineTo(-1.5, 8); ctx.lineTo(-1.5, 2); ctx.lineTo(-5, 3); ctx.closePath();
+      ctx.ellipse(0, -4, 3.6, 5, 0, 0, Math.PI * 2);
       ctx.fill(); ctx.stroke();
       ctx.restore();
     }
@@ -1261,7 +1263,7 @@
     if (W && H) {
       drawLid();
       drawRain(dt);
-      drawCursors();
+      drawTappers();
       drawCookie();
       drawParticles(dt);
     }
