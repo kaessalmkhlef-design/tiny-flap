@@ -516,7 +516,8 @@
 
   // Upgrade strength and price. Refined Recipes (bought with Golden Crumbs) adds +10% strength per level.
   const UP_MULT = 2.7, UP_PCT = 0.0162, UP_PRICE = 0.88;
-  function upStrength() { return 1 + 0.1 * S.recipeLevel; }
+  function upStrength() { return Math.pow(1.1, S.recipeLevel); }
+  function recipePct() { return Math.round((upStrength() - 1) * 1000) / 10; }
   function fmtX(x) { return String(parseFloat(x.toFixed(2))); }
   const UPGRADES = [];
   for (const b of BUILDINGS) {
@@ -585,7 +586,12 @@
   const HELPER_BOOST = 1.08 * 1.15, CURSOR_BONUS = 0.3;
   function eachCps(b) { return b.cps * HELPER_BOOST * buildingMult(b.id); }
   function bonusCps(b) { return b.id === "cursor" ? CURSOR_BONUS * Math.floor(owned(b.id) / 5) * buildingMult(b.id) : 0; }
-  function buildingCps(b) { return owned(b.id) * eachCps(b) + bonusCps(b); }
+  // Each helper you buy is 7.5% stronger than the one before it.
+  const HELPER_GROWTH = 1.075;
+  function nextCps(b) { return eachCps(b) * Math.pow(HELPER_GROWTH, owned(b.id)); }
+  function buildingCps(b) {
+    return eachCps(b) * (Math.pow(HELPER_GROWTH, owned(b.id)) - 1) / (HELPER_GROWTH - 1) + bonusCps(b);
+  }
   // Rebirth: each Golden Crumb adds +10% to everything baked, forever.
   // Crumbs come from the cookies you currently have. Each rebirth makes the next one need 25% more.
   function crumbStep() { return 1e6 * Math.pow(1.25, S.rebirths); }
@@ -603,7 +609,7 @@
     const mult = clickMult();
     let pct = 0;
     for (const u of UPGRADES) if (u.clickPct && has(u.id)) pct += UP_PCT * upStrength();
-    return ((baseClick() + S.clickLevel * handsGain()) * mult + cps() * pct) * (clickFrenzy() ? 777 : 1);
+    return ((baseClick() + handsTotal()) * mult + cps() * pct) * (clickFrenzy() ? 777 : 1);
   }
   function clickMult() {
     let mult = 1;
@@ -611,6 +617,10 @@
     return mult;
   }
   function handsGain() { return HANDS_GAIN * upStrength(); }
+  // Each Stronger Hands level is 3% stronger than the one before it.
+  const HANDS_GROWTH = 1.03;
+  function handsNext() { return handsGain() * Math.pow(HANDS_GROWTH, S.clickLevel); }
+  function handsTotal() { return handsGain() * (Math.pow(HANDS_GROWTH, S.clickLevel) - 1) / (HANDS_GROWTH - 1); }
   // Stronger Hands price: +6% per level.
   const HANDS_BASE = 15 * UP_PRICE, HANDS_GAIN = 1.5;
   function handsCost(k) { return Math.ceil(HANDS_BASE * Math.pow(1.06, k)); }
@@ -789,7 +799,7 @@
     const hn = handsQty(), hc = handsPrice(hn), hr = $("clickRow");
     $("clickPrice").textContent = (hn > 1 ? hn + " for " : "") + fmt(hc);
     $("clickLevel").textContent = S.clickLevel || "";
-    $("clickDesc").textContent = "Each level adds +" + fmt(handsGain() * clickMult(), true) + " per click.";
+    $("clickDesc").textContent = "Next level adds +" + fmt(handsNext() * clickMult(), true) + " per click.";
     hr.dataset.afford = S.cookies >= hc ? "1" : "0";
     hr.setAttribute("aria-label", "Buy " + hn + " Stronger Hands level" + (hn > 1 ? "s" : "") + " for " + fmt(hc) + " cookies. Each level adds " + fmt(clickMult()) + " per click.");
 
@@ -813,9 +823,9 @@
       r.row.classList.remove("locked");
       const n = qtyFor(b);
       const cost = priceOf(b, n);
-      const each = eachCps(b) * rebirthMult();
+      const each = nextCps(b) * rebirthMult();
       r.name.textContent = b.name;
-      r.desc.textContent = b.desc + " +" + fmt(each, true) + "/s each." + (b.id === "cursor"
+      r.desc.textContent = b.desc + " Next one: +" + fmt(each, true) + "/s." + (b.id === "cursor"
         ? " Every 5th adds a bonus +" + fmt(CURSOR_BONUS * buildingMult(b.id) * rebirthMult(), true) + "/s (next at " + (Math.floor(owned(b.id) / 5) + 1) * 5 + ")."
         : "");
       r.price.textContent = (n > 1 ? n + " for " : "") + fmt(cost);
@@ -911,7 +921,7 @@
     $("rbFree").textContent = fmt(free);
     $("recipePrice").textContent = plural(rc, "crumb");
     $("recipeLevel").textContent = S.recipeLevel || "";
-    $("recipeDesc").textContent = "Every upgrade gets 10% stronger per level. Now +" + S.recipeLevel * 10 + "%.";
+    $("recipeDesc").textContent = "Each level makes every upgrade 10% stronger than the level before. Now +" + recipePct() + "%.";
     $("recipeRow").dataset.afford = free >= rc ? "1" : "0";
     $("recipeRow").setAttribute("aria-label", "Buy Refined Recipes level " + (S.recipeLevel + 1) + " for " + rc + " Golden Crumbs. You have " + free + ".");
     const badge = $("tabBadge");
@@ -950,7 +960,7 @@
     S.recipeLevel += 1;
     renderUps();
     update(true);
-    toast("Refined Recipes level " + S.recipeLevel + ": upgrades are +" + S.recipeLevel * 10 + "% stronger");
+    toast("Refined Recipes level " + S.recipeLevel + ": upgrades are +" + recipePct() + "% stronger");
   });
 
   // ---------- ticker ----------
