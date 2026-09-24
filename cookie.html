@@ -392,6 +392,15 @@
       </div>
     </div>
     <div>
+      <p class="label" style="padding-inline: 10px">Your clicks</p>
+      <div class="rows">
+        <button type="button" class="row" id="clickRow">
+          <span class="line"><span class="name">Stronger Hands</span><span class="dots"></span><span class="price" id="clickPrice"></span></span>
+          <span class="owned" id="clickLevel"></span><span class="desc" id="clickDesc"></span>
+        </button>
+      </div>
+    </div>
+    <div>
       <p class="label">Upgrades</p>
       <div class="ups" id="ups"></div>
     </div>
@@ -476,7 +485,7 @@
 
   // ---------- state ----------
   const fresh = () => ({
-    cookies: 0, total: 0, clicks: 0, handmade: 0,
+    cookies: 0, total: 0, clicks: 0, handmade: 0, clickLevel: 0,
     owned: {}, ups: [],
     started: Date.now(), last: Date.now(),
     frenzyUntil: 0, clickFrenzyUntil: 0,
@@ -505,7 +514,22 @@
   function perClick() {
     let mult = 1, pct = 0;
     for (const u of UPGRADES) if (has(u.id)) { mult *= u.clickMult || 1; pct += u.clickPct || 0; }
-    return (mult + cps() * pct) * (clickFrenzy() ? 777 : 1);
+    return ((1 + S.clickLevel) * mult + cps() * pct) * (clickFrenzy() ? 777 : 1);
+  }
+  function clickMult() {
+    let mult = 1;
+    for (const u of UPGRADES) if (has(u.id)) mult *= u.clickMult || 1;
+    return mult;
+  }
+  const HANDS_BASE = 20, HANDS_RATE = 1.35;
+  function handsPrice(n) {
+    const first = HANDS_BASE * Math.pow(HANDS_RATE, S.clickLevel);
+    return Math.ceil(first * (Math.pow(HANDS_RATE, n) - 1) / (HANDS_RATE - 1));
+  }
+  function handsQty() {
+    if (mode !== "max") return Number(mode);
+    const first = HANDS_BASE * Math.pow(HANDS_RATE, S.clickLevel);
+    return Math.max(1, Math.floor(Math.log(S.cookies * (HANDS_RATE - 1) / first + 1) / Math.log(HANDS_RATE)));
   }
   function priceOf(b, n) {
     const first = b.base * Math.pow(1.15, owned(b.id));
@@ -582,6 +606,16 @@
     update(true);
   }
 
+  $("clickRow").addEventListener("click", () => {
+    const n = handsQty();
+    const cost = handsPrice(n);
+    if (S.cookies < cost) return;
+    S.cookies -= cost;
+    S.clickLevel += n;
+    toast("Stronger Hands level " + S.clickLevel + ": +" + fmt(perClick(), true) + " per click");
+    update(true);
+  });
+
   function buyUp(u) {
     if (has(u.id) || S.cookies < u.cost) return;
     S.cookies -= u.cost;
@@ -648,6 +682,13 @@
       buff.hidden = false;
       buff.textContent = "Frenzy ×7 · " + Math.ceil((S.frenzyUntil - Date.now()) / 1000) + "s";
     } else buff.hidden = true;
+
+    const hn = handsQty(), hc = handsPrice(hn), hr = $("clickRow");
+    $("clickPrice").textContent = (hn > 1 ? hn + " for " : "") + fmt(hc);
+    $("clickLevel").textContent = S.clickLevel || "";
+    $("clickDesc").textContent = "Each level adds +" + fmt(clickMult()) + " per click.";
+    hr.dataset.afford = S.cookies >= hc ? "1" : "0";
+    hr.setAttribute("aria-label", "Buy " + hn + " Stronger Hands level" + (hn > 1 ? "s" : "") + " for " + fmt(hc) + " cookies. Each level adds " + fmt(clickMult()) + " per click.");
 
     let hiddenShown = false;
     for (const b of BUILDINGS) {
