@@ -625,7 +625,8 @@
   function handsNext() { return handsGain() * Math.pow(HANDS_GROWTH, S.clickLevel); }
   function handsTotal() { return handsGain() * (Math.pow(HANDS_GROWTH, S.clickLevel) - 1) / (HANDS_GROWTH - 1); }
   // Stronger Hands price: +6% per level.
-  const HANDS_BASE = 15 * UP_PRICE, HANDS_GAIN = 1.5;
+  // Scaled so 100 levels with all three click tiles give 3,500 per click.
+  const HANDS_BASE = 15 * UP_PRICE, HANDS_GAIN = 0.2912;
   function handsCost(k) { return Math.ceil(HANDS_BASE * Math.pow(1.06, k)); }
   function handsPrice(n) {
     let t = 0;
