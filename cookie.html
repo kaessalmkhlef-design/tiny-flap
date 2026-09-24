@@ -333,6 +333,26 @@
     cursor: pointer;
   }
   .ghost.danger { background: #a2553a; border-color: #a2553a; color: var(--cream); }
+  .rb-box {
+    margin-inline: 10px;
+    padding: 14px;
+    border-radius: 12px;
+    background: var(--tin);
+    color: var(--cream);
+    border: 2px solid var(--gold);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .rb-top { display: flex; align-items: center; gap: 12px; line-height: 1.3; }
+  .rb-top b { font-family: var(--display); font-weight: 400; font-size: 17px; color: var(--gold); }
+  .rb-crumbs { font-family: var(--display); font-size: 34px; color: var(--gold); min-width: 1.5ch; font-variant-numeric: tabular-nums; }
+  .rb-note { margin: 0; font-size: 13px; color: var(--gold-soft); font-variant-numeric: tabular-nums; }
+  .rb-box .ghost { border-color: var(--gold-soft); color: var(--cream); }
+  .rb-box .ghost.gold { background: var(--gold); border-color: var(--gold); color: var(--choc); font-weight: 700; }
+  .rb-box .ghost:disabled { opacity: 0.45; cursor: not-allowed; }
+  .rb-box .ghost:focus-visible { outline: 2px solid var(--gold-soft); outline-offset: 2px; }
+  .rb-box .confirm { font-size: 13px; }
   .confirm { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 
   .toast {
@@ -379,6 +399,7 @@
     <div class="stage-foot">
       <span id="perClick">+1 per click</span>
       <span id="baked">0 baked all time</span>
+      <span id="rbFoot" hidden></span>
     </div>
   </section>
 
@@ -407,6 +428,14 @@
     <div>
       <p class="label" style="padding-inline: 10px">Helpers</p>
       <div class="rows" id="rows"></div>
+    </div>
+    <div>
+      <p class="label" style="padding-inline: 10px">Rebirth</p>
+      <div class="rb-box">
+        <div class="rb-top"><span class="rb-crumbs" id="rbCrumbs">0</span><span><b>Golden Crumbs</b><br /><span id="rbBonus"></span></span></div>
+        <p class="rb-note" id="rbNote"></p>
+        <div id="rbWrap"></div>
+      </div>
     </div>
     <div class="shop-foot">
       <span id="stats"></span>
@@ -455,7 +484,7 @@
         id: b.id + "-" + i,
         name: TIER_NAMES[b.id][i],
         glyph: b.name[0],
-        desc: b.name + "s are twice as productive.",
+        desc: b.name + "s are 2.5× as productive.",
         cost: b.base * t.costX,
         unlocked: () => owned(b.id) >= t.need,
         building: b.id,
@@ -463,18 +492,18 @@
     });
   }
   [
-    { id: "click-0", name: "Oven Mitts", cost: 100, need: 15, mult: 2 },
-    { id: "click-1", name: "Wooden Spoon", cost: 500, need: 100, mult: 2 },
-    { id: "click-2", name: "Iron Rolling Pin", cost: 10000, need: 1000, mult: 2 },
-    { id: "click-3", name: "Sugar Rush", cost: 50000, need: 5000, pct: 0.01 },
-    { id: "click-4", name: "Muscle Memory", cost: 5e6, need: 500000, pct: 0.01 },
-    { id: "click-5", name: "Golden Whisk", cost: 5e8, need: 5e7, pct: 0.01 },
+    { id: "click-0", name: "Oven Mitts", cost: 100, need: 15, mult: 2.5 },
+    { id: "click-1", name: "Wooden Spoon", cost: 500, need: 100, mult: 2.5 },
+    { id: "click-2", name: "Iron Rolling Pin", cost: 10000, need: 1000, mult: 2.5 },
+    { id: "click-3", name: "Sugar Rush", cost: 50000, need: 5000, pct: 0.015 },
+    { id: "click-4", name: "Muscle Memory", cost: 5e6, need: 500000, pct: 0.015 },
+    { id: "click-5", name: "Golden Whisk", cost: 5e8, need: 5e7, pct: 0.015 },
   ].forEach((c) => {
     UPGRADES.push({
       id: c.id,
       name: c.name,
       glyph: "✦",
-      desc: c.mult ? "Clicking bakes twice as many cookies." : "Each click also bakes 1% of your cookies per second.",
+      desc: c.mult ? "Clicking bakes 2.5× as many cookies." : "Each click also bakes 1.5% of your cookies per second.",
       cost: c.cost,
       unlocked: () => S.handmade >= c.need,
       clickMult: c.mult || 1,
@@ -485,7 +514,8 @@
 
   // ---------- state ----------
   const fresh = () => ({
-    cookies: 0, total: 0, clicks: 0, handmade: 0, clickLevel: 0,
+    cookies: 0, total: 0, runTotal: 0, clicks: 0, handmade: 0, clickLevel: 0,
+    crumbs: 0, rebirths: 0,
     owned: {}, ups: [],
     started: Date.now(), last: Date.now(),
     frenzyUntil: 0, clickFrenzyUntil: 0,
@@ -500,21 +530,25 @@
 
   function buildingMult(id) {
     let m = 1;
-    for (const u of UPGRADES) if (u.building === id && has(u.id)) m *= 2;
+    for (const u of UPGRADES) if (u.building === id && has(u.id)) m *= 2.5;
     return m;
   }
   function baseCps() {
     let t = 0;
     for (const b of BUILDINGS) t += owned(b.id) * b.cps * buildingMult(b.id);
-    return t;
+    return t * rebirthMult();
   }
+  // Rebirth: each Golden Crumb adds +10% to everything baked, forever.
+  const CRUMB_STEP = 1e6;
+  function rebirthMult() { return 1 + 0.1 * S.crumbs; }
+  function pendingCrumbs() { return Math.floor(Math.cbrt(S.runTotal / CRUMB_STEP) + 1e-9); }
   function frenzy() { return Date.now() < S.frenzyUntil; }
   function clickFrenzy() { return Date.now() < S.clickFrenzyUntil; }
   function cps() { return baseCps() * (frenzy() ? 7 : 1); }
   function perClick() {
     let mult = 1, pct = 0;
     for (const u of UPGRADES) if (has(u.id)) { mult *= u.clickMult || 1; pct += u.clickPct || 0; }
-    return ((1 + S.clickLevel) * mult + cps() * pct) * (clickFrenzy() ? 777 : 1);
+    return ((1 + S.clickLevel * HANDS_GAIN) * mult * rebirthMult() + cps() * pct) * (clickFrenzy() ? 777 : 1);
   }
   function clickMult() {
     let mult = 1;
@@ -522,7 +556,7 @@
     return mult;
   }
   // Stronger Hands price: +15% per level for levels 1-50, +20% for the next 100, then +25% from there on.
-  const HANDS_BASE = 15;
+  const HANDS_BASE = 15, HANDS_GAIN = 1.5;
   function handsRate(k) { return k < 50 ? 0.15 : k < 150 ? 0.2 : 0.25; }
   function handsCost(k) {
     const a = Math.min(k, 50), b = Math.min(Math.max(k - 50, 0), 100), c = Math.max(k - 150, 0);
@@ -570,6 +604,10 @@
   function plural(n, word) { return fmt(n) + " " + (Math.floor(n) === 1 ? word : word + "s"); }
 
   // ---------- storage ----------
+  function migrate(d) {
+    if (d.runTotal == null) d.runTotal = d.total || 0;
+    return Object.assign(fresh(), d);
+  }
   function save() {
     S.last = Date.now();
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) {}
@@ -578,7 +616,7 @@
     try {
       const raw = localStorage.getItem(SAVE_KEY);
       if (!raw) return null;
-      return Object.assign(fresh(), JSON.parse(raw));
+      return migrate(JSON.parse(raw));
     } catch (e) { return null; }
   }
 
@@ -638,7 +676,7 @@
   }
 
   function isVisible(b) {
-    return owned(b.id) > 0 || S.total >= b.base * 0.5;
+    return owned(b.id) > 0 || S.runTotal >= b.base * 0.5;
   }
 
   document.querySelectorAll(".modes button").forEach((btn) => {
@@ -698,7 +736,7 @@
     const hn = handsQty(), hc = handsPrice(hn), hr = $("clickRow");
     $("clickPrice").textContent = (hn > 1 ? hn + " for " : "") + fmt(hc);
     $("clickLevel").textContent = S.clickLevel || "";
-    $("clickDesc").textContent = "Each level adds +" + fmt(clickMult()) + " per click. Price rises " + Math.round(handsRate(S.clickLevel) * 100) + "% per level.";
+    $("clickDesc").textContent = "Each level adds +" + fmt(HANDS_GAIN * clickMult() * rebirthMult(), true) + " per click. Price rises " + Math.round(handsRate(S.clickLevel) * 100) + "% per level.";
     hr.dataset.afford = S.cookies >= hc ? "1" : "0";
     hr.setAttribute("aria-label", "Buy " + hn + " Stronger Hands level" + (hn > 1 ? "s" : "") + " for " + fmt(hc) + " cookies. Each level adds " + fmt(clickMult()) + " per click.");
 
@@ -736,8 +774,10 @@
       el.dataset.afford = u && S.cookies >= u.cost ? "1" : "0";
     });
 
+    renderRebirth();
+
     const mins = Math.floor((Date.now() - S.started) / 60000);
-    $("stats").textContent = fmt(S.clicks) + " clicks · baking for " +
+    $("stats").textContent = fmt(S.clicks) + " clicks · " + (S.rebirths ? plural(S.rebirths, "rebirth") + " · " : "") + "baking for " +
       (mins < 60 ? mins + " min" : Math.floor(mins / 60) + " h " + (mins % 60) + " min");
   }
 
@@ -765,12 +805,65 @@
       '<button type="button" class="ghost danger" id="yesReset">Yes, start over</button>' +
       '<button type="button" class="ghost" id="noReset">Keep baking</button></span>';
     $("yesReset").addEventListener("click", () => {
-      S = fresh(); upSig = ""; save(); renderUps(); showReset(); update(true);
+      S = fresh(); upSig = ""; save(); renderUps(); showReset(); showRebirthBtn(); update(true);
       toast("Fresh tin, empty shelves");
     });
     $("noReset").addEventListener("click", showReset);
   }
   $("resetBtn").addEventListener("click", askReset);
+
+  // ---------- rebirth ----------
+  const rbWrap = $("rbWrap");
+  let rbConfirming = false;
+  function showRebirthBtn() {
+    rbConfirming = false;
+    rbWrap.innerHTML = '<button type="button" class="ghost gold" id="rbBtn"></button>';
+    $("rbBtn").addEventListener("click", () => {
+      const gain = pendingCrumbs();
+      if (gain < 1) return;
+      rbConfirming = true;
+      rbWrap.innerHTML = '<span class="confirm">Give up this run\'s cookies, helpers, upgrades and Stronger Hands for +' +
+        plural(gain, "Golden Crumb") + '? <button type="button" class="ghost gold" id="rbYes">Rebirth</button>' +
+        '<button type="button" class="ghost" id="rbNo">Not yet</button></span>';
+      $("rbYes").addEventListener("click", rebirth);
+      $("rbNo").addEventListener("click", () => { showRebirthBtn(); update(true); });
+    });
+  }
+  function rebirth() {
+    const gain = pendingCrumbs();
+    if (gain < 1) return showRebirthBtn();
+    S = Object.assign(fresh(), {
+      crumbs: S.crumbs + gain,
+      rebirths: S.rebirths + 1,
+      total: S.total,
+      clicks: S.clicks,
+      started: S.started,
+    });
+    if (goldenEl) removeGolden();
+    upSig = "";
+    save();
+    renderUps();
+    showRebirthBtn();
+    update(true);
+    toast("Reborn with " + plural(S.crumbs, "Golden Crumb") + ": +" + Math.round(S.crumbs * 10) + "% to everything");
+  }
+  function renderRebirth() {
+    const gain = pendingCrumbs();
+    $("rbCrumbs").textContent = fmt(S.crumbs);
+    $("rbBonus").textContent = "+" + fmt(S.crumbs * 10) + "% to all cookies baked";
+    const next = Math.pow(gain + 1, 3) * CRUMB_STEP;
+    $("rbNote").textContent = gain < 1
+      ? "Bake " + fmt(CRUMB_STEP) + " cookies in one run to earn " + (S.crumbs ? "more crumbs" : "your first crumb") + ". This run: " + fmt(S.runTotal) + "."
+      : "Rebirth now for +" + plural(gain, "crumb") + ". Next crumb at " + fmt(next) + " baked this run.";
+    const foot = $("rbFoot");
+    foot.hidden = S.crumbs === 0;
+    foot.textContent = "Crumbs +" + fmt(S.crumbs * 10) + "%";
+    if (rbConfirming) return;
+    const btn = $("rbBtn");
+    btn.disabled = gain < 1;
+    btn.textContent = gain < 1 ? "Rebirth" : "Rebirth for +" + plural(gain, "crumb");
+  }
+  showRebirthBtn();
 
   // ---------- ticker ----------
   const NEWS = [
@@ -1029,7 +1122,7 @@
   }
 
   // ---------- clicking ----------
-  function addCookies(n) { S.cookies += n; S.total += n; }
+  function addCookies(n) { S.cookies += n; S.total += n; S.runTotal += n; }
   cookieBtn.addEventListener("click", (e) => {
     const n = perClick();
     addCookies(n);
@@ -1073,7 +1166,7 @@
   window.addEventListener("pagehide", save);
 
   function start(data) {
-    const restored = data && data.S ? Object.assign(fresh(), data.S) : load();
+    const restored = data && data.S ? migrate(data.S) : load();
     if (restored) {
       S = restored;
       const away = Math.min(8 * 3600, (Date.now() - S.last) / 1000);
