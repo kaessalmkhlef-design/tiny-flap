@@ -521,15 +521,27 @@
     for (const u of UPGRADES) if (has(u.id)) mult *= u.clickMult || 1;
     return mult;
   }
-  const HANDS_BASE = 15, HANDS_RATE = 1.35;
+  // Stronger Hands price: +15% per level for levels 1-50, +20% for the next 100, then +25% from there on.
+  const HANDS_BASE = 15;
+  function handsRate(k) { return k < 50 ? 0.15 : k < 150 ? 0.2 : 0.25; }
+  function handsCost(k) {
+    const a = Math.min(k, 50), b = Math.min(Math.max(k - 50, 0), 100), c = Math.max(k - 150, 0);
+    return Math.ceil(HANDS_BASE * Math.pow(1.15, a) * Math.pow(1.2, b) * Math.pow(1.25, c));
+  }
   function handsPrice(n) {
-    const first = HANDS_BASE * Math.pow(HANDS_RATE, S.clickLevel);
-    return Math.ceil(first * (Math.pow(HANDS_RATE, n) - 1) / (HANDS_RATE - 1));
+    let t = 0;
+    for (let i = 0; i < n; i++) t += handsCost(S.clickLevel + i);
+    return t;
   }
   function handsQty() {
     if (mode !== "max") return Number(mode);
-    const first = HANDS_BASE * Math.pow(HANDS_RATE, S.clickLevel);
-    return Math.max(1, Math.floor(Math.log(S.cookies * (HANDS_RATE - 1) / first + 1) / Math.log(HANDS_RATE)));
+    let n = 0, t = 0;
+    while (n < 10000) {
+      const c = handsCost(S.clickLevel + n);
+      if (t + c > S.cookies) break;
+      t += c; n++;
+    }
+    return Math.max(1, n);
   }
   function priceOf(b, n) {
     const first = b.base * Math.pow(1.15, owned(b.id));
@@ -686,7 +698,7 @@
     const hn = handsQty(), hc = handsPrice(hn), hr = $("clickRow");
     $("clickPrice").textContent = (hn > 1 ? hn + " for " : "") + fmt(hc);
     $("clickLevel").textContent = S.clickLevel || "";
-    $("clickDesc").textContent = "Each level adds +" + fmt(clickMult()) + " per click.";
+    $("clickDesc").textContent = "Each level adds +" + fmt(clickMult()) + " per click. Price rises " + Math.round(handsRate(S.clickLevel) * 100) + "% per level.";
     hr.dataset.afford = S.cookies >= hc ? "1" : "0";
     hr.setAttribute("aria-label", "Buy " + hn + " Stronger Hands level" + (hn > 1 ? "s" : "") + " for " + fmt(hc) + " cookies. Each level adds " + fmt(clickMult()) + " per click.");
 
