@@ -205,6 +205,29 @@
     gap: 10px;
     flex-wrap: wrap;
   }
+  .tabs { display: flex; gap: 18px; }
+  .tab {
+    font-family: var(--display);
+    font-size: 22px;
+    background: none;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    padding: 0 0 2px;
+    color: var(--choc-soft);
+    cursor: pointer;
+  }
+  .tab[aria-selected="true"] { color: var(--tin); border-bottom-color: var(--gold); }
+  .tab:focus-visible { outline: 2px solid var(--tin); outline-offset: 3px; }
+  .tab-badge {
+    font: 700 11px var(--body);
+    background: var(--gold);
+    color: var(--choc);
+    border-radius: 999px;
+    padding: 2px 7px;
+    vertical-align: 4px;
+    font-variant-numeric: tabular-nums;
+  }
+  .pane { display: flex; flex-direction: column; gap: 16px; }
   .shop h2 {
     font-family: var(--display);
     font-weight: 400;
@@ -334,7 +357,6 @@
   }
   .ghost.danger { background: #a2553a; border-color: #a2553a; color: var(--cream); }
   .rb-box {
-    margin-inline: 10px;
     padding: 14px;
     border-radius: 12px;
     background: var(--tin);
@@ -405,13 +427,17 @@
 
   <aside class="shop" aria-label="Shop">
     <div class="shop-head">
-      <h2>Price list</h2>
-      <div class="modes" role="group" aria-label="Buy amount">
+      <div class="tabs" role="tablist" aria-label="Shop sections">
+        <button type="button" class="tab" role="tab" id="tabShop" aria-controls="paneShop" aria-selected="true">Price list</button>
+        <button type="button" class="tab" role="tab" id="tabRebirth" aria-controls="paneRebirth" aria-selected="false">Rebirth <span class="tab-badge" id="tabBadge" hidden></span></button>
+      </div>
+      <div class="modes" id="modes" role="group" aria-label="Buy amount">
         <button type="button" data-mode="1" aria-pressed="true">×1</button>
         <button type="button" data-mode="10" aria-pressed="false">×10</button>
         <button type="button" data-mode="max" aria-pressed="false">Max</button>
       </div>
     </div>
+    <div class="pane" id="paneShop" role="tabpanel" aria-labelledby="tabShop">
     <div>
       <p class="label" style="padding-inline: 10px">Your clicks</p>
       <div class="rows">
@@ -429,13 +455,24 @@
       <p class="label" style="padding-inline: 10px">Helpers</p>
       <div class="rows" id="rows"></div>
     </div>
+    </div>
+    <div class="pane" id="paneRebirth" role="tabpanel" aria-labelledby="tabRebirth" hidden>
     <div>
-      <p class="label" style="padding-inline: 10px">Rebirth</p>
       <div class="rb-box">
-        <div class="rb-top"><span class="rb-crumbs" id="rbCrumbs">0</span><span><b>Golden Crumbs</b><br /><span id="rbBonus"></span></span></div>
+        <div class="rb-top"><span class="rb-crumbs" id="rbCrumbs">0</span><span><b>Golden Crumbs earned</b><br /><span id="rbBonus"></span></span></div>
         <p class="rb-note" id="rbNote"></p>
         <div id="rbWrap"></div>
       </div>
+    </div>
+    <div>
+      <p class="label" style="padding-inline: 10px">Crumb upgrades · <span id="rbFree">0</span> to spend</p>
+      <div class="rows">
+        <button type="button" class="row" id="recipeRow">
+          <span class="line"><span class="name">Refined Recipes</span><span class="dots"></span><span class="price" id="recipePrice"></span></span>
+          <span class="owned" id="recipeLevel"></span><span class="desc" id="recipeDesc"></span>
+        </button>
+      </div>
+    </div>
     </div>
     <div class="shop-foot">
       <span id="stats"></span>
@@ -477,6 +514,10 @@
     { need: 50, costX: 5000 },
   ];
 
+  // Upgrade strength and price. Refined Recipes (bought with Golden Crumbs) adds +10% strength per level.
+  const UP_MULT = 2.7, UP_PCT = 0.0162, UP_PRICE = 0.88;
+  function upStrength() { return 1 + 0.1 * S.recipeLevel; }
+  function fmtX(x) { return String(parseFloat(x.toFixed(2))); }
   const UPGRADES = [];
   for (const b of BUILDINGS) {
     TIERS.forEach((t, i) => {
@@ -484,30 +525,32 @@
         id: b.id + "-" + i,
         name: TIER_NAMES[b.id][i],
         glyph: b.name[0],
-        desc: b.name + "s are 2.5× as productive.",
-        cost: b.base * t.costX,
+        desc: () => b.name + "s are " + fmtX(UP_MULT * upStrength()) + "× as productive.",
+        cost: Math.round(b.base * t.costX * UP_PRICE),
         unlocked: () => owned(b.id) >= t.need,
         building: b.id,
       });
     });
   }
   [
-    { id: "click-0", name: "Oven Mitts", cost: 100, need: 15, mult: 2.5 },
-    { id: "click-1", name: "Wooden Spoon", cost: 500, need: 100, mult: 2.5 },
-    { id: "click-2", name: "Iron Rolling Pin", cost: 10000, need: 1000, mult: 2.5 },
-    { id: "click-3", name: "Sugar Rush", cost: 50000, need: 5000, pct: 0.015 },
-    { id: "click-4", name: "Muscle Memory", cost: 5e6, need: 500000, pct: 0.015 },
-    { id: "click-5", name: "Golden Whisk", cost: 5e8, need: 5e7, pct: 0.015 },
+    { id: "click-0", name: "Oven Mitts", cost: 100, need: 15, mult: true },
+    { id: "click-1", name: "Wooden Spoon", cost: 500, need: 100, mult: true },
+    { id: "click-2", name: "Iron Rolling Pin", cost: 10000, need: 1000, mult: true },
+    { id: "click-3", name: "Sugar Rush", cost: 50000, need: 5000, pct: true },
+    { id: "click-4", name: "Muscle Memory", cost: 5e6, need: 500000, pct: true },
+    { id: "click-5", name: "Golden Whisk", cost: 5e8, need: 5e7, pct: true },
   ].forEach((c) => {
     UPGRADES.push({
       id: c.id,
       name: c.name,
       glyph: "✦",
-      desc: c.mult ? "Clicking bakes 2.5× as many cookies." : "Each click also bakes 1.5% of your cookies per second.",
-      cost: c.cost,
+      desc: () => c.mult
+        ? "Clicking bakes " + fmtX(UP_MULT * upStrength()) + "× as many cookies."
+        : "Each click also bakes " + fmtX(UP_PCT * upStrength() * 100) + "% of your cookies per second.",
+      cost: Math.round(c.cost * UP_PRICE),
       unlocked: () => S.handmade >= c.need,
-      clickMult: c.mult || 1,
-      clickPct: c.pct || 0,
+      clickMult: !!c.mult,
+      clickPct: !!c.pct,
     });
   });
   UPGRADES.sort((a, b) => a.cost - b.cost);
@@ -515,7 +558,7 @@
   // ---------- state ----------
   const fresh = () => ({
     cookies: 0, total: 0, runTotal: 0, clicks: 0, handmade: 0, clickLevel: 0,
-    crumbs: 0, rebirths: 0,
+    crumbs: 0, crumbsSpent: 0, recipeLevel: 0, rebirths: 0,
     owned: {}, ups: [],
     started: Date.now(), last: Date.now(),
     frenzyUntil: 0, clickFrenzyUntil: 0,
@@ -530,7 +573,7 @@
 
   function buildingMult(id) {
     let m = 1;
-    for (const u of UPGRADES) if (u.building === id && has(u.id)) m *= 2.5;
+    for (const u of UPGRADES) if (u.building === id && has(u.id)) m *= UP_MULT * upStrength();
     return m;
   }
   function baseCps() {
@@ -540,23 +583,28 @@
   }
   // Rebirth: each Golden Crumb adds +10% to everything baked, forever.
   const CRUMB_STEP = 1e6;
+  // The bonus counts every crumb ever earned, so spending crumbs never lowers it.
   function rebirthMult() { return 1 + 0.1 * S.crumbs; }
+  function crumbsFree() { return S.crumbs - S.crumbsSpent; }
+  function recipeCost() { return 3 + 2 * S.recipeLevel; }
   function pendingCrumbs() { return Math.floor(Math.cbrt(S.runTotal / CRUMB_STEP) + 1e-9); }
   function frenzy() { return Date.now() < S.frenzyUntil; }
   function clickFrenzy() { return Date.now() < S.clickFrenzyUntil; }
   function cps() { return baseCps() * (frenzy() ? 7 : 1); }
   function perClick() {
-    let mult = 1, pct = 0;
-    for (const u of UPGRADES) if (has(u.id)) { mult *= u.clickMult || 1; pct += u.clickPct || 0; }
-    return ((1 + S.clickLevel * HANDS_GAIN) * mult * rebirthMult() + cps() * pct) * (clickFrenzy() ? 777 : 1);
+    const mult = clickMult();
+    let pct = 0;
+    for (const u of UPGRADES) if (u.clickPct && has(u.id)) pct += UP_PCT * upStrength();
+    return ((1 + S.clickLevel * handsGain()) * mult * rebirthMult() + cps() * pct) * (clickFrenzy() ? 777 : 1);
   }
   function clickMult() {
     let mult = 1;
-    for (const u of UPGRADES) if (has(u.id)) mult *= u.clickMult || 1;
+    for (const u of UPGRADES) if (u.clickMult && has(u.id)) mult *= UP_MULT * upStrength();
     return mult;
   }
+  function handsGain() { return HANDS_GAIN * upStrength(); }
   // Stronger Hands price: +15% per level for levels 1-50, +20% for the next 100, then +25% from there on.
-  const HANDS_BASE = 15, HANDS_GAIN = 1.5;
+  const HANDS_BASE = 15 * UP_PRICE, HANDS_GAIN = 1.62;
   function handsRate(k) { return k < 50 ? 0.15 : k < 150 ? 0.2 : 0.25; }
   function handsCost(k) {
     const a = Math.min(k, 50), b = Math.min(Math.max(k - 50, 0), 100), c = Math.max(k - 150, 0);
@@ -690,7 +738,7 @@
   let upSig = "";
   function renderUps() {
     const avail = UPGRADES.filter((u) => !has(u.id) && u.unlocked());
-    const sig = avail.map((u) => u.id).join();
+    const sig = avail.map((u) => u.id).join() + "|" + S.recipeLevel;
     if (sig === upSig) return;
     upSig = sig;
     upsEl.innerHTML = "";
@@ -703,10 +751,10 @@
       el.type = "button";
       el.className = "up";
       el.dataset.id = u.id;
-      el.setAttribute("aria-label", u.name + ", " + fmt(u.cost) + " cookies. " + u.desc);
+      el.setAttribute("aria-label", u.name + ", " + fmt(u.cost) + " cookies. " + u.desc());
       el.innerHTML = '<span aria-hidden="true">' + u.glyph + '</span><span class="tip"><b></b><span class="d"></span><span class="price"></span></span>';
       el.querySelector("b").textContent = u.name;
-      el.querySelector(".d").textContent = u.desc;
+      el.querySelector(".d").textContent = u.desc();
       el.querySelector(".price").textContent = plural(u.cost, "cookie");
       el.addEventListener("click", () => buyUp(u));
       upsEl.appendChild(el);
@@ -736,7 +784,7 @@
     const hn = handsQty(), hc = handsPrice(hn), hr = $("clickRow");
     $("clickPrice").textContent = (hn > 1 ? hn + " for " : "") + fmt(hc);
     $("clickLevel").textContent = S.clickLevel || "";
-    $("clickDesc").textContent = "Each level adds +" + fmt(HANDS_GAIN * clickMult() * rebirthMult(), true) + " per click. Price rises " + Math.round(handsRate(S.clickLevel) * 100) + "% per level.";
+    $("clickDesc").textContent = "Each level adds +" + fmt(handsGain() * clickMult() * rebirthMult(), true) + " per click. Price rises " + Math.round(handsRate(S.clickLevel) * 100) + "% per level.";
     hr.dataset.afford = S.cookies >= hc ? "1" : "0";
     hr.setAttribute("aria-label", "Buy " + hn + " Stronger Hands level" + (hn > 1 ? "s" : "") + " for " + fmt(hc) + " cookies. Each level adds " + fmt(clickMult()) + " per click.");
 
@@ -834,6 +882,8 @@
     if (gain < 1) return showRebirthBtn();
     S = Object.assign(fresh(), {
       crumbs: S.crumbs + gain,
+      crumbsSpent: S.crumbsSpent,
+      recipeLevel: S.recipeLevel,
       rebirths: S.rebirths + 1,
       total: S.total,
       clicks: S.clicks,
@@ -850,6 +900,16 @@
   function renderRebirth() {
     const gain = pendingCrumbs();
     $("rbCrumbs").textContent = fmt(S.crumbs);
+    const free = crumbsFree(), rc = recipeCost();
+    $("rbFree").textContent = fmt(free);
+    $("recipePrice").textContent = plural(rc, "crumb");
+    $("recipeLevel").textContent = S.recipeLevel || "";
+    $("recipeDesc").textContent = "Every upgrade gets 10% stronger per level. Now +" + S.recipeLevel * 10 + "%.";
+    $("recipeRow").dataset.afford = free >= rc ? "1" : "0";
+    $("recipeRow").setAttribute("aria-label", "Buy Refined Recipes level " + (S.recipeLevel + 1) + " for " + rc + " Golden Crumbs. You have " + free + ".");
+    const badge = $("tabBadge");
+    badge.hidden = gain < 1 && free < rc;
+    badge.textContent = gain >= 1 ? "+" + fmt(gain) : fmt(free);
     $("rbBonus").textContent = "+" + fmt(S.crumbs * 10) + "% to all cookies baked";
     const next = Math.pow(gain + 1, 3) * CRUMB_STEP;
     $("rbNote").textContent = gain < 1
@@ -864,6 +924,27 @@
     btn.textContent = gain < 1 ? "Rebirth" : "Rebirth for +" + plural(gain, "crumb");
   }
   showRebirthBtn();
+
+  function showTab(which) {
+    const rb = which === "rebirth";
+    $("paneShop").hidden = rb;
+    $("paneRebirth").hidden = !rb;
+    $("modes").hidden = rb;
+    $("tabShop").setAttribute("aria-selected", String(!rb));
+    $("tabRebirth").setAttribute("aria-selected", String(rb));
+  }
+  $("tabShop").addEventListener("click", () => showTab("shop"));
+  $("tabRebirth").addEventListener("click", () => showTab("rebirth"));
+
+  $("recipeRow").addEventListener("click", () => {
+    const cost = recipeCost();
+    if (crumbsFree() < cost) return;
+    S.crumbsSpent += cost;
+    S.recipeLevel += 1;
+    renderUps();
+    update(true);
+    toast("Refined Recipes level " + S.recipeLevel + ": upgrades are +" + S.recipeLevel * 10 + "% stronger");
+  });
 
   // ---------- ticker ----------
   const NEWS = [
